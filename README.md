@@ -1,0 +1,2 @@
+# IDEAspec
+IDEAspec control software
