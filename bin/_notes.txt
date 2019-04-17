@@ -1,0 +1,172 @@
+"wt 10 ug Chl no FR*******************************************************************
+TEXT OF SCRIPT FILE USED:
+note_query
+record_script
+record_events(1)
+record_files(1)
+
+intensity(0)
+
+
+set_base_file
+ref_in_channel(1)
+gain_slop(.5)
+plot_clear
+
+
+'/////////////////////////////////PROTOCOLS////////////////////
+number_protocols(10)
+'
+
+'///////////////////////protocol 3 fluorescence//////////////////////////////////
+'
+current_protocol(3)
+in_channel(0)
+adc_gain(bip10volts)
+m_number_loops(4)
+m_pulse_set(60,100,100,100)
+m_far_red(1,1,1,1)
+m_number_measuring_lights(1)
+measuring_pulse_duration(100u)
+m_measuring_light(3)
+l_measuring_interval(5m,5m,5m,5m)
+baseline_start(10)
+baseline_end(20)
+
+'///////////////////////protocol 5 P700 //////////////////////////////////
+'
+current_protocol(5)
+in_channel(0)
+adc_gain(bip10volts)
+m_number_loops(6)
+m_pulse_set(250,900,100,50,1000,2000)
+m_number_measuring_lights(1)
+measuring_pulse_duration(100u)
+m_measuring_light(9)
+l_measuring_interval(2m,2m,2m,2m,2m,2m)
+baseline_start(10)
+baseline_end(20)
+
+'///////////////////////protocol 6 P700 //////////////////////////////////
+'
+current_protocol(6)
+in_channel(0)
+adc_gain(bip10volts)
+m_number_loops(8)
+m_pulse_set(250,75,25,1925,1000,1000,100,1000)
+m_number_measuring_lights(1)
+measuring_pulse_duration(100u)
+m_measuring_light(9)
+l_measuring_interval(2m,2m,2m,2m,2m,2m,2m,2m)
+baseline_start(10)
+baseline_end(20)
+
+'///////////////////////set up traces//////////////////////////
+number_traces(102)
+
+current_trace(2)
+save_mode(file_append)
+time_mode(sequential)
+
+current_trace(5)
+save_mode(file_append)
+time_mode(sequential)
+
+current_trace(6)
+save_mode(file_append)
+time_mode(sequential)
+
+
+'///////////////////begin EXPERIMENTS/////////////////////////////
+'
+intensity(0)
+
+!lt
+
+#lt(1)=0
+!ab
+#ab(1)=0
+append_base(.000)
+sub(sinfl)
+sub(p700_DA)
+sub(703firk)
+
+#lt(1)=3
+intensity(@lt(1))
+stir(1)
+wait(600)
+stir(0)
+sub(sinfl)
+sub(703firk)
+
+intensity(0)
+end
+
+'///////////////subroutines
+
+'single fluorescence
+sinfl|
+current_trace(2)
+current_protocol(3)
+f_shutter(0)
+m_intensity(@lt(1),256,@lt(1),@lt(1))
+
+wait(5)
+m_trace
+plot_raw(1)
+
+return
+
+'PSI
+703firk|
+current_protocol(5)
+m_intensity(0,@lt(1),@lt(1),256,@lt(1),0)
+f_shutter(0)
+
+
+current_trace(5)
+m_trace
+plot_raw(4)
+plot_ref(5)
+delta_a
+plot_delta(2)
+
+return
+
+'p700DA
+p700_DA|
+current_protocol(6)
+m_intensity(0,15,256,15,0,30,256,0)
+f_shutter(0)
+
+current_trace(6)
+m_trace
+plot_raw(3)
+plot_ref(4)
+delta_a
+plot_delta(5)
+
+return
+
+*******************************************************************
+
+'tod':'6:46:36 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.0000002.dat'
+
+'tod':'6:46:37 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.000_aux_0002.dat'
+
+'tod':'6:46:54 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.0000006.dat'
+
+'tod':'6:46:54 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.000_aux_0006.dat'
+
+'tod':'6:47:11 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.0000005.dat'
+
+'tod':'6:47:11 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.000_aux_0005.dat'
+
+'tod':'6:48:30 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.0000002.dat'
+
+'tod':'6:48:30 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.000_aux_0002.dat'
+
+'tod':'6:48:45 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.0000005.dat'
+
+'tod':'6:48:45 PM','file':'C:\Users\caapp_senz3d\Documents\Ducat\25_Jan_2019\wt 10 ug Chl no FR.dat.000_aux_0005.dat'
+",
