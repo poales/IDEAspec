@@ -9,9 +9,10 @@ Imports System.IO
 
 
 Friend Class DMK_v1
+
     Inherits System.Windows.Forms.Form ' must be first (stupid VB...)
     Dim invert_raw As Integer = 1 'placve -1 here to invert the raw data (i.e. raw data will be multipolied by this)
-    Dim version As String = "Jan_21_2018_AK"
+
     Dim plot_data_point As Integer = True
 
     Dim program_directory As String = Environment.CurrentDirectory
@@ -20,7 +21,7 @@ Friend Class DMK_v1
 
     Dim Gain_Volts(2, 4, 10) As Single
 
-    Dim Baseline_Y(5000) As Single
+    Dim Baseline_Y(100) As Single
     Dim Auto_File_Name As String
     Dim auto_run As Integer = False
     Const Blue_Filter As Short = 110
@@ -37,8 +38,6 @@ Friend Class DMK_v1
     Dim Trace_protocol() As Integer = {0, 0, 0} ' associates a protocol to a trace, such that the trace will automatically pick it's protocol when m_trace is called (deprecated)
     Dim Xe_intensity_value As Single
     Dim M_Primary_Gain(,) As Short = {{0, 0, 0}, {0, 0, 0}}
-    Dim M_Reference_Gain(,) As Short = {{0, 0, 0}, {0, 0, 0}}
-
     Dim m_set_auto_gain(,) As Short = {{0, 0, 0}, {0, 0, 0}}
     Dim m_take_data(,) As Integer
 
@@ -67,7 +66,7 @@ Friend Class DMK_v1
     Dim take_notes As Integer
     Dim stir_status As Integer = 0
     Dim Current_Trace As Short
-    Dim pre_pulse_light As Short
+    Dim pre_pulse_light As Long
     Dim Max_Number_Lights As Integer = 32
     'from pblast"
     Dim stemp As Single
@@ -92,7 +91,7 @@ Friend Class DMK_v1
     Dim nmp As Integer
     Dim new_firgelli As Integer = False
 
-    Dim gain_slop As Single = 8.0
+    Dim gain_slop As Single = 5.0
 
     Dim number_of_channels_to_scan As Integer
 
@@ -149,7 +148,7 @@ Friend Class DMK_v1
         '       user_variable_name(number_variables) = "auto_gain"
         '       user_variable_index(number_variables) = 1
         '        Jabber_jabber.List1.Items.Add(user_variable_name(number_variables))
-        
+
         'this is for the monochromator on Charley
         'Dim BaudRates() As String = {"300", "1200", "2400", "4800", "9600", "14400", "19200", "28800", "38400", "57600", "115200"}
         'cmbBaud.Items.AddRange(BaudRates)
@@ -615,7 +614,8 @@ Friend Class DMK_v1
                             As Short, ByVal pre_pulse(,) As Short, ByVal pre_pulse_time(,) As String, ByVal Pre_Delay(,) As String, _
                             ByVal m_take_data(,) As Short)
 
-        halt.Enabled = True
+        halt.Enabled = False
+
 
         Dim ulstat As Short
         Dim Start_of_Wait, end_of_wait As Single
@@ -687,14 +687,7 @@ Friend Class DMK_v1
         reference_gain_label.Text = reference_gain(Current_Protocol, 1)
         ProgressBar3.Value = Intensity(Current_Protocol, 1)
         actinic_label.Text = Intensity(Current_Protocol, 1)
-        Dim ix As Short
-        'Jabber_jabber.gain_data_list.Items.Add("after: ")
-        'For ix = 1 To M_Number_Measuring_Lights(Current_Protocol)
-        '    Jabber_jabber.gain_data_list.Items.Add(m_Primary_Gain(Current_Protocol, ix))
-        'Next
-        'For ix = 1 To m_Number_Measuring_Lights(Current_Protocol)
-        '    Jabber_jabber.gain_data_list.Items.Add(m_reference_gain(Current_Protocol, ix))
-        'Next
+
 
         Dim expected_run_time As Double = 0 ' This variable keeps track of how long to wait for a protocol to finish (used to detect time-out errors)
         ' Use the ChrisBlaster to run the protocol
@@ -782,7 +775,7 @@ Friend Class DMK_v1
 
         Time_Out_Time = 2 * data_time(data_time.Length - 2) + 0.1 ' time point of last data point and multiple by 2 for good measure
 
-        'Jabber_jabber.List1.Items.Add("Time_Out_Time = " + Str(Time_Out_Time))
+        Jabber_jabber.List1.Items.Add("Time_Out_Time = " + Str(Time_Out_Time))
 
 
         'Midnight bug fix:
@@ -955,7 +948,7 @@ Friend Class DMK_v1
         Dim testvar2 As Integer = Data_Volts.Length()
 
         Trace_Running = False
-
+        halt.Enabled = True
     End Sub
 
 
@@ -1007,12 +1000,10 @@ Friend Class DMK_v1
         ' PrintLine(1, "")
         ' Next i
         ' FileClose(1)
-        Dim j_m_plot_trace(3, 3) As Short
-        j_m_plot_trace(0, 1) = 1
 
         For i = 1 To 6
-            'Jabber_jabber.List1.Items.Add(Str(j_m_plot_trace(0, 1)))
-            Call Plot_File(rootdata_directory & "test.dat", (i), (i And 1), False, 0, 0, j_m_plot_trace)
+            'List1.Items.Add(Graph_Name(i))
+            Call Plot_File(rootdata_directory & "test.dat", (i), (i And 1), False, 0)
         Next i
 
 
@@ -1032,17 +1023,15 @@ Friend Class DMK_v1
 
     Sub Hold_on_There(ByRef Wait_Time As Single)
         Dim Start_of_Wait As Single
-
+        Dim Past_Mid As Boolean
+        Past_Mid = False
         Start_of_Wait = VB.Timer()
         Bug_Out = False
 
         'Midnight bug fix:
         ' Adjust the waiting time by subtracting a day if the wait should end tomorrow
-        If ((Wait_Time + Start_of_Wait) > (24 * 60 * 60)) Then
-            Wait_Time = Wait_Time - (24 * 60 * 60)
-        End If
 
-        While VB.Timer() - Start_of_Wait < Wait_Time And Bug_Out = False And Halt_Script = False
+        While (VB.Timer() - Start_of_Wait) - 86399 * Int((VB.Timer() - Start_of_Wait + 1) / 86399) < Wait_Time And Bug_Out = False And Halt_Script = False
 
             Label2.Text = CStr(Int(10 * (Wait_Time - (VB.Timer() - Start_of_Wait))) / 10)
 
@@ -1050,10 +1039,12 @@ Friend Class DMK_v1
 
         End While
 
+
+
     End Sub
 
 
-    Sub Plot_File(ByRef Plot_File_name As String, ByVal Plot_Window As Short, ByVal Plot_Delta As Short, ByVal add_to As Integer, ByVal linear_x As Integer, ByRef Current_Protocol As Short, ByVal m_plot_specific_traces(,) As Short) ', ByRef graph_name() As Object)
+    Sub Plot_File(ByRef Plot_File_name As String, ByVal Plot_Window As Short, ByVal Plot_Delta As Short, ByVal add_to As Integer, ByVal linear_x As Integer) ', ByRef graph_name() As Object)
 
         Dim Number_Measuring_Lights As Integer
         Dim i, ii, total_points As Integer
@@ -1115,7 +1106,6 @@ Friend Class DMK_v1
         FileOpen(12, Plot_File_name, OpenMode.Input, OpenAccess.Default, OpenShare.Shared)
         If Plot_Delta = 1 Then
             While EOF(12) = False
-
                 For ii = 1 To Number_Measuring_Lights
                     Input(12, Plot_Data_X(ii, i))
                     If linear_x >= 1 Then
@@ -1177,7 +1167,19 @@ Friend Class DMK_v1
 
     End Sub
 
-Sub Delta_A_calculate_smooth_reference(ByRef I_File_Name As String, ByVal baseline_start As Integer, ByVal baseline_end As Integer, ByRef smooth_window As Short, ByRef alternate_reference_file_name As String)
+    Private Sub FlowController(ByVal com As String, ByVal text As String)
+        spalicat.PortName = com
+        spalicat.BaudRate = 19200
+        spalicat.DataBits = 8
+        spalicat.StopBits = IO.Ports.StopBits.One
+        spalicat.Open()
+        spalicat.Write(text)
+        spalicat.Write(Chr(13))
+        spalicat.Close()
+    End Sub
+
+
+    Sub Delta_A_calculate_smooth_reference(ByRef I_File_Name As String, ByVal baseline_start As Integer, ByVal baseline_end As Integer, ByRef smooth_window As Short, ByRef alternate_reference_file_name As String)
         Dim j As String
         Dim Number_Measuring_Lights As Integer
 
@@ -1187,7 +1189,7 @@ Sub Delta_A_calculate_smooth_reference(ByRef I_File_Name As String, ByVal baseli
         FileClose(1)
         Dim strArray() As String
         strArray = j.Split(Chr(9))
-        'Jabber_jabber.List1.Items.Add(strArray.Length)
+        Jabber_jabber.List1.Items.Add(strArray.Length)
         Number_Measuring_Lights = strArray.Length / 4  '4 data points per measuring lights per 
         'next set up a matrix to hold the data sets
         Dim read_data_time(Number_Measuring_Lights, 1) As Single
@@ -1229,7 +1231,7 @@ Sub Delta_A_calculate_smooth_reference(ByRef I_File_Name As String, ByVal baseli
             FileClose(1)
             'Dim strArray() As String
             strArray = j.Split(Chr(9))
-            'Jabber_jabber.List1.Items.Add(strArray.Length)
+            Jabber_jabber.List1.Items.Add(strArray.Length)
             Number_Measuring_Lights = strArray.Length / 4  '4 data points per measuring lights per 
             'next set up a matrix to hold the data sets
             Dim a_read_data_time(Number_Measuring_Lights, 1) As Single
@@ -1287,8 +1289,8 @@ Sub Delta_A_calculate_smooth_reference(ByRef I_File_Name As String, ByVal baseli
                         For iix = ix - smooth_window To number_smooth_range - 1
                             read_data_reference_smoothed(i, ix) = read_data_reference_smoothed(i, ix) + read_data_reference(i, iix)
 
-                            'Jabber_jabber.List1.Items.Add(ix)
-                            'Jabber_jabber.List1.Items.Add(read_data_reference(i, ix))
+                            Jabber_jabber.List1.Items.Add(ix)
+                            Jabber_jabber.List1.Items.Add(read_data_reference(i, ix))
                             count_avs = count_avs + 1
                         Next
                     End If
@@ -1327,9 +1329,9 @@ Sub Delta_A_calculate_smooth_reference(ByRef I_File_Name As String, ByVal baseli
                     btemp2 = btemp2 + read_data_reference(i, ii)
                 End If
 
-Next
-            sample_baselines(i) = btemp1 / (baseline_end - baseline_start)
-            reference_baselines(i) = btemp2 / (baseline_end - baseline_start)
+            Next
+            sample_baselines(i) = btemp1 / ((baseline_end - baseline_start) + 1)
+            reference_baselines(i) = btemp2 / ((baseline_end - baseline_start) + 1)
 
         Next
         Dim xx(,) As Single = read_data_reference
@@ -1388,7 +1390,7 @@ Next
         FileClose(1)
         Dim strArray() As String
         strArray = j.Split(Chr(9))
-        'Jabber_jabber.List1.Items.Add(strArray.Length)
+        Jabber_jabber.List1.Items.Add(strArray.Length)
         Number_Measuring_Lights = strArray.Length / 4  '4 data points per measuring lights per 
         'next set up a matrix to hold the data sets
         Dim read_data_time(Number_Measuring_Lights, 1) As Single
@@ -1483,7 +1485,11 @@ Next
         FileClose(1)
 
     End Sub
-Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_Pulse_Duration(,) As String, _
+
+
+
+
+    Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_Pulse_Duration(,) As String, _
                                       ByRef Current_Protocol As Short)
         Dim j As String
         Dim Number_Measuring_Lights As Integer
@@ -1494,7 +1500,7 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
         FileClose(1)
         Dim strArray() As String
         strArray = j.Split(Chr(9))
-        'Jabber_jabber.List1.Items.Add(strArray.Length)
+        Jabber_jabber.List1.Items.Add(strArray.Length)
         Number_Measuring_Lights = strArray.Length / 4  '4 data points per measuring lights per 
         'next set up a matrix to hold the data sets
         Dim read_data_time(Number_Measuring_Lights, 1) As Single
@@ -1576,7 +1582,7 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
             End If
             integration_time = Val(trimmed) * factor
 
-            'Jabber_jabber.List1.Items.Add(integration_time)
+            Jabber_jabber.List1.Items.Add(integration_time)
             For ii = 0 To number_time_points - 1
                 normalized_sample = read_data_sample(i, ii) / integration_time
                 Jabber_jabber.List1.Items.Add(normalized_sample)
@@ -1619,7 +1625,7 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
         FileClose(1)
         Dim strArray() As String
         strArray = j.Split(Chr(9))
-        'Jabber_jabber.List1.Items.Add(strArray.Length)
+        Jabber_jabber.List1.Items.Add(strArray.Length)
         Number_Measuring_Lights = strArray.Length / 4  '4 data points per measuring lights per 
         'next set up a matrix to hold the data sets
         Dim read_data_time(Number_Measuring_Lights, 1) As Single
@@ -1714,6 +1720,9 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
         FileClose(1)
 
     End Sub
+
+
+
     'Sub Delta_A_no_ref_old(ByRef I_File_Name As String, ByVal baseline_start As Integer, ByVal baseline_end As Integer)
 
     '    Dim Number_columns As Object
@@ -2796,10 +2805,10 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
 
     '    If Upper_Value > 1 Then 'we have ehough values to interpolate the best value
     ''assume that the response is linear between the Upper_Value and the next smallest
-    '' time1
+    '' time1f
     ''calculate slope
     '        dur2 = Duration_Value(Measuring_Pulse_Duration, Upper_Value)
-    '        dur1 = Duration_Value(Measuring_Pulse_Duration, Upper_Value - 1)
+    '        dur1 = Duration_Value(furation, Upper_Value - 1)
 
     '        m = (dur2 - dur1) / (Math.Abs(Gain_Volts_Abs(Upper_Value)) - Math.Abs(Gain_Volts_Abs(Upper_Value - 1)))
 
@@ -2823,22 +2832,24 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
     ''Auto_Gain_Calc = target_string
 
     'End Function
-    ' Private Function Duration_Value(ByVal Measuring_Pulse_Duration(,) As String, ByVal Value_Number As Integer) As Single
-    '     Dim factor As Single
-    '     Dim trimmed As String
+    'Private Function Duration_Value(ByVal Current_Protocol As Short, ByVal Measuring_Pulse_Duration(,) As String, ByVal Value_Number As Integer) As Single
+    '    Dim factor As Single
+    '    Dim trimmed As String
 
-    '     trimmed = Trim(Measuring_Pulse_Duration(0, Value_Number))
-    '     If VB.Right(trimmed, 1) = "u" Then
-    '         factor = 0.000001
-    '     ElseIf VB.Right(trimmed, 1) = "m" Then
-    '         factor = 0.001
-    '     ElseIf VB.Right(trimmed, 1) = "n" Then
-    '         factor = 0.000000001
-    '     Else
-    '         factor = 1
-    '     End If
-    '     Duration_Value = Val(trimmed) * factor
-    ' End Function
+    '    trimmed = Trim(Measuring_Pulse_Duration(Current_Protocol, Value_Number))
+    '    If VB.Right(trimmed, 1) = "u" Then
+    '        factor = 0.000001
+    '    ElseIf VB.Right(trimmed, 1) = "m" Then
+    '        factor = 0.001
+    '    ElseIf VB.Right(trimmed, 1) = "n" Then
+    '        factor = 0.000000001
+    '    Else
+    '        factor = 1
+    '    End If
+    '    Duration_Value = Val(trimmed) * factor
+    '    Return (Duration_Value)
+    'End Function
+
     Private Sub subtract_traces(ByRef File_Name_1 As String, ByRef File_Name_2 As String, ByRef File_Name_3 As String)
 
         Dim Accumulated_Data_X() As Single
@@ -3213,7 +3224,7 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
     Public Sub halt_Click(ByVal eventSender As System.Object, ByVal eventArgs As System.EventArgs) Handles halt.Click
 
         Halt_Script = True
-        Call Shut_Down()
+        'Call Shut_Down()
 
     End Sub
 
@@ -3347,15 +3358,18 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
         Dim Number_Traces As Short
 
         'Dim set_gain_for_this_measuring_light As String
-        Dim Current_Intensity As Short = 0
+        Dim Current_Intensity As Short
         Dim Far_Red As Short
         Dim Blue_Actinic As Short
+        Dim Com_Port As String
+        Dim FC_Command As String
 
         ' END dimentions involving DIRK traces
 
         ' start DIm with MULTI-traces
         'Call Multi_Trae(Number_Loops, Intensity(), Number_Pulses(), Number_Measuring_Lights, Measuring_Light(), Measuring_Interval(), Primary_Gain(), Measuring_Pulse_Duration)
         Dim alternate_reference_file_name() As String = {"", "", ""}
+
         Dim M_Number_Loops() As Short = {0, 0, 0}
         Dim M_Intensity(,) As Short = {{0, 0, 0}, {0, 0, 0}}
         Dim M_Far_Red(,) As Short = {{0, 0, 0}, {0, 0, 0}}
@@ -3366,7 +3380,6 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
         Dim M_Number_Pulses(,) As Short = {{0, 0, 0}, {0, 0, 0}}
         Dim M_Number_Measuring_Lights() As Short = {0, 0, 0}
         Dim M_Measuring_Light(,) As Short = {{0, 0, 0}, {0, 0, 0}}
-        Dim m_plot_specific_traces(,) As Short ' = {{0, 0}, {0, 0}}
         Dim M_Take_Data(,) As Short = {{0, 0, 0}, {0, 0, 0}}
         Dim M_choke_actinic(,) As Short = {{0, 0, 0}, {0, 0, 0}}
 
@@ -3375,8 +3388,7 @@ Sub normalize_to_integration_time(ByRef I_File_Name As String, ByVal Measuring_P
         'Dim M_Primary_Gain(,) As Short = {{0, 0, 0}, {0, 0, 0}}
         Dim Xe_Flash(,) As Short = {{0, 0, 0}, {0, 0, 0}}
         Dim q_switch(,) As Short = {{0, 0, 0}, {0, 0, 0}}
-        'the following line is deleted in the Exxon version
-        'Dim M_Reference_Gain(,) As Short = {{0, 0, 0}, {0, 0, 0}}
+        Dim M_Reference_Gain(,) As Short = {{0, 0, 0}, {0, 0, 0}}
         Dim Baseline_Start() As Short = {0, 0, 0}
         Dim Baseline_End() As Short = {0, 0, 0}
         Dim iii As Short
@@ -4014,8 +4026,9 @@ skipit:
                         'keepgoing = ShowScriptErrorMessage(Script_Counter, Script, "DANGER: measuring pulse length is too long and will probably cause permanent damage to the measuring LED.")
                         If keepgoing = False Then Exit Sub
                     End If
-                    'List1.Items.Add("protocol: " + Str(Current_Protocol) + "%%%:" + Measuring_Pulse_Duration(Current_Protocol, n_light))
+                    Jabber_jabber.List1.Items.Add("protocol: " + Str(Current_Protocol) + "%%%:" + Measuring_Pulse_Duration(Current_Protocol, n_light))
                 Next n_light
+                'Jabber_jabber()
                 ' ///// end pulse duration catch /////
                 'List1.AddItem "mpi" & Measuring_Pulse_Duration(Current_Protocol)
 
@@ -4026,7 +4039,7 @@ skipit:
                 For iii = 1 To M_Number_Loops(Current_Protocol)  'set to take data on all loops; can be overridden with m_take_data
                     M_Take_Data(Current_Protocol, iii) = 1
                 Next
-                ElseIf C_Script = "m_separate_reference_trace" Then
+            ElseIf C_Script = "m_separate_reference_trace" Then
                 Call Advance_Script()
                 If Val(C_Script) > 0 Then
                     alternate_reference_file_name(Current_Trace) = File_Name(Val(C_Script))
@@ -4154,13 +4167,6 @@ skipit:
 
                 Next mm
 
-            ElseIf C_Script = "m_plot_trace" Then
-
-                For M_Temp = 1 To M_Number_Measuring_Lights(Current_Protocol)
-                    Call Advance_Script()
-                    'Script_Counter = Script_Counter + 1 'increment the script counter
-                    m_plot_specific_traces(Current_Protocol, M_Temp) = Val(C_Script)
-                Next M_Temp
 
             ElseIf C_Script = "m_measuring_light" Then
 
@@ -4200,7 +4206,9 @@ skipit:
             ElseIf C_Script = "m_pre_pulse_light" Or C_Script = "pre_pulse_light" Then
                 Call Advance_Script()
                 pre_pulse_light = Val(C_Script)
-ElseIf C_Script = "m_pre_pulse_measuring_light" Then
+                Jabber_jabber.List1.Items.Add("pre_pulse_light = " + Str(pre_pulse_light))
+
+            ElseIf C_Script = "m_pre_pulse_measuring_light" Then
                 Call Advance_Script()
                 If Val(C_Script) > 0 Then
                     pre_pulse_light = pre_pulse_light Or Val(C_Script) * &H10
@@ -4253,7 +4261,6 @@ ElseIf C_Script = "m_pre_pulse_measuring_light" Then
                 End If
                 Jabber_jabber.List1.Items.Add("pre_pulse_light = " + Str(pre_pulse_light))
 
-           
             ElseIf C_Script = "m_pre_pulse" Or C_Script = "pre_pulse" Then
                 Dim mm As Integer
                 For mm = 1 To M_Number_Loops(Current_Protocol)
@@ -4286,13 +4293,11 @@ ElseIf C_Script = "m_pre_pulse_measuring_light" Then
                     'Script_Counter = Script_Counter + 1 'increment the script counter
                     M_Primary_Gain(Current_Protocol, M_Temp) = CShort(C_Script)
                 Next M_Temp
-                'Dim ix As Short
-                'Jabber_jabber.gain_data_list.Items.Add("sample gains assigned from script m_detector_gain: ")
-                'For ix = 1 To M_Number_Measuring_Lights(Current_Protocol)
-                '    Jabber_jabber.gain_data_list.Items.Add(M_Primary_Gain(Current_Protocol, ix))
-                'Next
+
+
 
             ElseIf C_Script = "m_set_auto_gain" Then
+
                 For M_Temp = 1 To M_Number_Measuring_Lights(Current_Protocol)
                     Call Advance_Script()
                     'Script_Counter = Script_Counter + 1 'increment the script counter
@@ -4303,30 +4308,12 @@ ElseIf C_Script = "m_pre_pulse_measuring_light" Then
 
                 '
             ElseIf C_Script = "m_reference_gain" Then
-                'Jabber_jabber.gain_data_list.Items.Add("ref gains during m_reference_gain: ")
+
                 For M_Temp = 1 To M_Number_Measuring_Lights(Current_Protocol)
                     Call Advance_Script()
-
                     'Script_Counter = Script_Counter + 1 'increment the script counter
                     M_Reference_Gain(Current_Protocol, M_Temp) = CShort(C_Script)
-                    Jabber_jabber.gain_data_list.Items.Add(M_Reference_Gain(Current_Protocol, M_Temp))
                 Next M_Temp
-
-                'Dim ix As Short
-                'Jabber_jabber.gain_data_list.Items.Add("ref gains assigned from script m_reference_gain: ")
-                'For ix = 1 To M_Number_Measuring_Lights(Current_Protocol)
-                '    Jabber_jabber.gain_data_list.Items.Add(M_Reference_Gain(Current_Protocol, ix))
-                'Next
-
-
-            ' ElseIf C_Script = "m_set_auto_gain" Then
-
-            '     For M_Temp = 1 To M_Number_Measuring_Lights(Current_Protocol)
-            '         Call Advance_Script()
-            '         'Script_Counter = Script_Counter + 1 'increment the script counter
-            '         m_set_auto_gain(Current_Protocol, M_Temp) = CShort(C_Script)
-            '         'Jabber_jabber.gain_data_list.Items.Add(m_set_auto_gain(Current_Protocol, M_Temp))
-            '     Next M_Temp
 
                 'NEW COMMANDS: 2010.09.07   9/7/2010
                 ' runs the protocol saved in the given memory index
@@ -4484,7 +4471,7 @@ ElseIf C_Script = "m_pre_pulse_measuring_light" Then
                     Next i
 
                     offset = offset / points
-                    If ForReal Then List1.Items.Add("offset: " & offset)
+                    If ForReal Then Jabber_jabber.List1.Items.Add("offset: " & offset)
                     'Scrolling text box fix: make the box jump to the bottom after adding an item
                     List1.TopIndex = List1.Items.Count - 1
 
@@ -4500,42 +4487,15 @@ ElseIf C_Script = "m_pre_pulse_measuring_light" Then
 
                     'Dim M_Primary_Gain() As Integer
                 End If
-            ElseIf C_Script = "clear_gain_window" Then
-
-                Jabber_jabber.gain_data_list.Items.Clear()
-
-
             ElseIf C_Script = "auto_gain" Then
-
-                'Dim ix As Integer
-                'Jabber_jabber.gain_data_list.Items.Add("before: ")
-                'For ix = 1 To M_Number_Measuring_Lights(Current_Protocol)
-                '    Jabber_jabber.gain_data_list.Items.Add(M_Primary_Gain(Current_Protocol, ix))
-                'Next
-                'For ix = 1 To M_Number_Measuring_Lights(Current_Protocol)
-                '    Jabber_jabber.gain_data_list.Items.Add(M_Reference_Gain(Current_Protocol, ix))
-                'Next
-
                 If ForReal Then
-                    'Dim auto_gain_output As Object
                     auto_gain_n(Current_Protocol, M_Number_Measuring_Lights, M_Number_Loops, M_Number_Pulses, _
-                           Current_Intensity, M_Intensity, M_Take_Data, M_Primary_Gain, M_Reference_Gain, Measuring_Pulse_Duration, _
+                           M_Intensity, M_Take_Data, M_Reference_Gain, Measuring_Pulse_Duration, _
                             L_Measuring_Interval, Ref_Channel_Number, In_Channel, M_Measuring_Light, _
                             M_choke_actinic, Gain, points, data_time, Xe_Flash, q_switch, M_Far_Red, _
                             M_Blue_Actinic, Pre_Pulse, Pre_Pulse_Time, Pre_Delay, File_Name, exclude_from_gain)
 
-                    'Jabber_jabber.gain_data_list.Items.Add("after: ")
-                    'For ix = 1 To M_Number_Measuring_Lights(Current_Protocol)
-                    '    Jabber_jabber.gain_data_list.Items.Add(M_Primary_Gain(Current_Protocol, ix))
-                    'Next
-                    'For ix = 1 To M_Number_Measuring_Lights(Current_Protocol)
-                    '    Jabber_jabber.gain_data_list.Items.Add(M_Reference_Gain(Current_Protocol, ix))
-                    'Next
 
-
-                    'Dim t(,) As Short = M_Primary_Gain
-                    'Dim tt(,) As Short = M_Reference_Gain
-                    'Dim ttt(,) As String = Measuring_Pulse_Duration
                 End If
 
             ElseIf C_Script = "in_channel" Or C_Script = "meas_in_channel" Then
@@ -4684,13 +4644,12 @@ ElseIf C_Script = "m_pre_pulse_measuring_light" Then
                 If ForReal Then
                     'If use_ref_channel = False Then
                     Call Delta_A_calculate_smooth_reference(File_Name(Current_Trace), (Baseline_Start(Current_Protocol)), (Baseline_End(Current_Protocol)), 0, alternate_reference_file_name(Current_Trace))
-
                     'Call Delta_A_calculate(File_Name(Current_Trace), (Baseline_Start(Current_Protocol)), (Baseline_End(Current_Protocol)))
                     'Else
                     'Call Delta_A_WITH_ref(File_Name(Current_Trace), (Baseline_Start(Current_Protocol)), (Baseline_End(Current_Protocol)))
                     'End If
                 End If
-                ElseIf C_Script = "delta_a_s" Then
+            ElseIf C_Script = "delta_a_s" Then
                 If ForReal Then
                     Call Advance_Script()
                     Dim smooth_window As Short = Val(C_Script)
@@ -4814,7 +4773,8 @@ ElseIf C_Script = "m_pre_pulse_measuring_light" Then
 
                 ReDim Save_Mode(Number_Traces)
                 ReDim File_Name(Number_Traces)
-ReDim alternate_reference_file_name(Number_Traces)
+                ReDim alternate_reference_file_name(Number_Traces)
+
                 ReDim Aux_File_Name(Number_Traces)
                 ReDim Trace_protocol(Number_Traces)
                 '    m Baseline_Start(Number_Traces)
@@ -4827,12 +4787,10 @@ ReDim alternate_reference_file_name(Number_Traces)
                     File_Name(i) = Trim(Base_File_Name & VB6.Format(i, "0000") & ".dat")
                     Aux_File_Name(i) = Trim(Base_File_Name & "_aux_" & VB6.Format(i, "0000") & ".dat")
                     alternate_reference_file_name(i) = ""
+
                     'List1.AddItem File_Name(i)
                     Time_Mode(i) = "from_zero"
-
                 Next i
-
-
 
             ElseIf C_Script = "purge_file" Then
                 If ForReal Then
@@ -4903,8 +4861,6 @@ ReDim alternate_reference_file_name(Number_Traces)
 
                 ReDim M_Take_Data(Number_Protocols, Max_Number_Loops)
                 ReDim M_Measuring_Light(Number_Protocols, Max_Number_Lights)
-                ReDim m_plot_specific_traces(Number_Protocols + 1, Max_Number_Lights + 1)
-
                 ReDim M_choke_actinic(Number_Protocols, Max_Number_Lights)
 
                 ReDim M_Measuring_Interval(Number_Protocols, Max_Number_Lights)
@@ -4958,7 +4914,6 @@ ReDim alternate_reference_file_name(Number_Traces)
                     For ii = 0 To Max_Number_Lights
                         M_choke_actinic(i, ii) = 0
                         m_set_auto_gain(i, ii) = 1 'the default value is 1, i.e. set it
-                        m_plot_specific_traces(i, ii) = 1
                     Next
                 Next
 
@@ -5130,6 +5085,15 @@ ReDim alternate_reference_file_name(Number_Traces)
                     ProgressBar3.Value = Current_Intensity
                     actinic_label.Text = Current_Intensity
                 End If
+            ElseIf C_Script = "set_fc" Then
+                Call Advance_Script()
+                Com_Port = C_Script
+                Call Advance_Script()
+                FC_Command = C_Script
+                If ForReal Then
+                    Call FlowController(Com_Port, FC_Command)
+                End If
+
             ElseIf C_Script = "blue_actinic" Or C_Script = "flash" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
@@ -5199,50 +5163,50 @@ ReDim alternate_reference_file_name(Number_Traces)
 
             ElseIf C_Script = "plot_file" Then
                 Call Advance_Script()
-                'Script_Counter = Script_Counter + 1 'increment the script m_plot_specific_traces
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), False, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                'Script_Counter = Script_Counter + 1 'increment the script counter
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), False, 0) ', Graph_Name)
             ElseIf C_Script = "plot_clear" Then
                 For i = 1 To 6
                     'List1.Items.Add(Graph_Name(i))
-                    If ForReal Then Call Plot_File(rootdata_directory & "test.dat", (i), (i And 1), False, 0, Current_Protocol, m_plot_specific_traces)
+                    If ForReal Then Call Plot_File(rootdata_directory & "test.dat", (i), (i And 1), False, 0)
                 Next i
 
             ElseIf C_Script = "plot_raw" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (0), False, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (0), False, 0) ', Graph_Name)
 
             ElseIf C_Script = "plot_delta" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), False, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), False, 0) ', Graph_Name)
             ElseIf C_Script = "plot_delta_linear" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), False, 1, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), False, 1) ', Graph_Name)
 
             ElseIf C_Script = "plot_ref" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (2), False, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (2), False, 0) ', Graph_Name)
             ElseIf C_Script = "add_plot_raw" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (0), True, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (0), True, 0) ', Graph_Name)
 
             ElseIf C_Script = "add_plot_delta" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), True, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), True, 0) ', Graph_Name)
             ElseIf C_Script = "add_plot_delta_linear" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), True, 1, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (1), True, 1) ', Graph_Name)
 
             ElseIf C_Script = "add_plot_ref" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (2), True, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (2), True, 0) ', Graph_Name)
 
 
             ElseIf C_Script = "calc_delta" Then
@@ -5256,43 +5220,39 @@ ReDim alternate_reference_file_name(Number_Traces)
             ElseIf C_Script = "aux_plot_raw" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then
-                    Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (0), False, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
-
-                End If
-                'If ForReal Then Call Plot_File(File_Name(Current_Trace), (Val(C_Script)), (0), False, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (0), False, 0) ', Graph_Name)
 
             ElseIf C_Script = "aux_plot_delta" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (1), False, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (1), False, 0) ', Graph_Name)
             ElseIf C_Script = "aux_plot_delta_linear" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (1), False, 1, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (1), False, 1) ', Graph_Name)
 
             ElseIf C_Script = "aux_plot_ref" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (2), False, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
-            ElseIf C_Script = "aux_add_plot_raw" Or C_Script = "add_aux_plot_raw" Then
+                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (2), False, 0) ', Graph_Name)
+            ElseIf C_Script = "aux_add_plot_raw" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (0), True, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (0), True, 0) ', Graph_Name)
 
-            ElseIf C_Script = "aux_add_plot_delta" Or C_Script = "add_aux_plot_delta" Then
+            ElseIf C_Script = "aux_add_plot_delta" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (1), True, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (1), True, 0) ', Graph_Name)
             ElseIf C_Script = "aux_add_plot_delta_linear" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (1), True, 1, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (1), True, 1) ', Graph_Name)
 
-            ElseIf C_Script = "aux_add_plot_ref" Or C_Script = "add_aux_plot_ref" Then
+            ElseIf C_Script = "aux_add_plot_ref" Then
                 Call Advance_Script()
                 'Script_Counter = Script_Counter + 1 'increment the script counter
-                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (2), True, 0, Current_Protocol, m_plot_specific_traces) ', Graph_Name)
+                If ForReal Then Call Plot_File(Aux_File_Name(Current_Trace), (Val(C_Script)), (2), True, 0) ', Graph_Name)
 
             ElseIf C_Script = "aux_calc_delta" Then
                 Call Advance_Script()
@@ -5985,7 +5945,7 @@ get_out:
 
     End Sub
 
-    
+
 
     Private Sub Button7_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles Button7.Click
         'Exit Sub
@@ -6036,11 +5996,6 @@ get_out:
 
 
         'Exit Sub
-
-
-
-
-
 
         'While P_O_A > target + 0.001 Or P_O_A < target - 0.001
         '    If Halt_Script = True Then Exit While
@@ -6979,8 +6934,8 @@ get_out:
     End Sub
 
     Private Sub Button13_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles Button13.Click
-        current_lambda = Val(LambdaText.Text)
-        Set_Lambda(Val(lambdasettext.Text))
+        'current_lambda = Val(LambdaText.Text)
+        'Set_Lambda(Val(lambdasettext.Text))
     End Sub
 
     Private Sub GetSerialPortNames()
@@ -7086,19 +7041,20 @@ get_out:
 
 
     Public Sub auto_gain_n(ByRef Current_Protocol, ByRef M_Number_Measuring_Lights, ByRef M_Number_Loops, ByRef M_Number_Pulses, _
-                           ByRef Current_Intensity, ByRef m_Intensity, ByRef M_Take_Data, ByRef M_Primary_Gain, ByRef M_Reference_Gain, ByRef Measuring_Pulse_Duration, _
+                           ByRef M_Intensity, ByRef M_Take_Data, ByRef M_Reference_Gain, ByRef Measuring_Pulse_Duration, _
                            ByRef L_Measuring_Interval, ByRef Ref_Channel_Number, ByRef In_Channel, ByRef M_Measuring_Light, _
                            ByRef M_choke_actinic, ByVal Gain, ByVal points, _
                            ByRef data_time, ByRef Xe_Flash, ByRef q_switch, ByRef M_Far_Red, ByRef M_Blue_Actinic, ByRef Pre_Pulse, _
                            ByRef Pre_Pulse_Time, ByRef Pre_Delay, ByVal File_Name, ByRef exclude_from_gain)
 
+        Jabber_jabber.gain_data_list.Items.Clear()
         'Dim temp_current_protocol, temp_current_trace As Integer
         Dim primary_gain_index, use_primary_gain, i, ii, iii, M_Temp As Integer
         Dim zero_protocol As Integer = 0
         ' the integration times will increase as per the values in measuring_pulse_duration_arry
         ' Note: when used, the array is indexed to start with 1, so the first point is skipped
 
-        Dim measuring_pulse_duration_array() As String = {"7u", "13u", "25u", "50u", "100u", "150u", "200u"} ' use only indexes 1-6
+        Dim measuring_pulse_duration_array() As String = {"1u", "7u", "13u", "25u", "50u", "100u", "200u"} ' use only indexes 1-6
         Dim primary_gains() As Short = {0, 1, 2, 3} 'use index 1-4
 
         Dim measuring_pulse_duration_numerical_array(measuring_pulse_duration_array.Length() + 1) As Single
@@ -7128,7 +7084,7 @@ get_out:
                     M_Number_Pulses(zero_protocol, 1) = 1 'fire each 'measuring light' only once.
 
                     'M_Intensity(zero_protocol, 0) = M_Intensity(Current_Protocol, 1)
-                    m_Intensity(zero_protocol, 1) = Current_Intensity ' M_Intensity(Current_Protocol, 1)
+                    M_Intensity(zero_protocol, 1) = M_Intensity(Current_Protocol, 1)
                     M_Take_Data(zero_protocol, 1) = 1  ' want to take data, use default values
 
                     iii = 0 'usaed to calculate the index for the gains
@@ -7148,9 +7104,18 @@ get_out:
                         L_Measuring_Interval(zero_protocol, iii, M_Number_Loops(zero_protocol)) = "1m"
                     Next
 
+                    'temp_current_protocol = Current_Protocol
+                    'temp_current_trace = Current_Trace
+                    'Current_Protocol = 0
                     Current_Trace = 0
                     Ref_Channel_Number(zero_protocol) = Ref_Channel_Number(Current_Protocol)
                     In_Channel(zero_protocol) = In_Channel(Current_Protocol)
+
+
+
+                    'gain_data_list.Items.Add("set_gain_for:" + Str(set_gain_for_this_measuring_light))
+                    ' set the measuring light to the special zero protocol to one of those in the prococol being set
+                    ' M_Measuring_Light(0, 1) = set_gain_for_this_measuring_light
 
                     'the following sets in the zero protocol to the one being tested.
                     ' apparently there are 100 of these???
@@ -7159,8 +7124,17 @@ get_out:
                         M_Measuring_Light(zero_protocol, M_Temp) = set_gain_for_this_measuring_light
                     Next M_Temp
 
+                    'gain_data_list.Items.Add("prime_channel= " + Str(In_Channel(temp_current_protocol)) + " ref_channel: " + Str(Ref_Channel_Number(temp_current_protocol)))
+                    'ByRef Current_Protocol As Short, ByRef Number_Loops() As Short, ByRef Intensity(,) _
+                    '        As Short, ByRef Number_Pulses(,) As Short, ByRef Number_Measuring_Lights() As Short, _
+                    '        ByRef Measuring_Light(,) As Short, ByRef choke_actinic(,) As Short, ByRef Measuring_Interval(,,) As String, _
+                    '        ByRef Primary_Gain(,) As Short, ByRef reference_gain(,) As Short, ByRef Measuring_Pulse_Duration(,) As String, _
+                    '        ByRef Gain() As Integer, ByRef In_Channel() As Short, ByRef Ref_channel_number() As Short, ByRef points As Integer, ByRef data_time() As Single, _
+                    '        ByRef Xe_Flash(,) As Short, ByRef q_switch(,) As Short, ByVal M_Far_Red(,) As Short, ByVal M_Blue_actinic(,) _
+                    '        As Short, ByVal pre_pulse(,) As Short, ByVal pre_pulse_time(,) As String, ByVal Pre_Delay(,) As String, _
+                    '        ByVal m_take_data(,) As Short
 
-                    Call Multi_Trace(zero_protocol, M_Number_Loops, m_Intensity, M_Number_Pulses, M_Number_Measuring_Lights, _
+                    Call Multi_Trace(zero_protocol, M_Number_Loops, M_Intensity, M_Number_Pulses, M_Number_Measuring_Lights, _
                                      M_Measuring_Light, M_choke_actinic, L_Measuring_Interval, M_Primary_Gain, M_Reference_Gain, _
                                      Measuring_Pulse_Duration, Gain, In_Channel, _
                                      Ref_Channel_Number, points, _
@@ -7176,128 +7150,203 @@ get_out:
                                     invert_raw, use_primary_gain)
 
 
+                    'For M_Temp = 1 To M_Number_Measuring_Lights(zero_protocol) - 1
+                    'gain_data_list.Items.Add( _
+                    '    "mpd: " & Str(measuring_pulse_duration_numerical_array(M_Temp)) & _
+                    '    "pg: " & Str(use_primary_gain) & _
+                    '    " ==> " & Str(Gain_Volts(0, use_primary_gain, M_Temp)) & _
+                    '" ++ " & Str(Gain_Volts(1, use_primary_gain, M_Temp)))
+
+
+                    'List1.Items.Add("passed thru : " & auto_gain_value)
+                    'Measuring_Pulse_Duration(temp_current_protocol, mi_index) = auto_gain_value
+                    'user_variable(1, set_gain_for_this_measuring_light) = auto_gain_value
+                    'gain_data_list.Items.Add("gain interval: " & auto_gain_value)
+                    'Next
+
+                    'Call do_auto_gain(Current_Protocol, M_Reference_Gain, _
+                    '                  L_Measuring_Interval, M_Measuring_Light, _
+                    '                  M_choke_actinic, M_Number_Measuring_Lights, _
+                    '                  M_Number_Loops, _
+                    '                  M_Intensity, M_Number_Pulses, _
+                    '                  M_Take_Data, Measuring_Pulse_Duration, _
+                    '                  Xe_Flash, Gain, In_Channel, _
+                    '                  M_Far_Red, M_Blue_Actinic, _
+                    '                  gain_slop, q_switch, Pre_Pulse, _
+                    '                  Pre_Pulse_Time, _
+                    '                  Pre_Delay)
+                    ''finis
+                    'List1.Items.Add(user_variable(1, 7))
+                    'Current_Trace = temp_current_trace
+                    'Current_Protocol = temp_current_protocol
                 Next 'done cycling through the primary gains
 
                 'Now we need find the gain settings that give the best (closest) to, but not over, the gain_slop setting
                 Dim this_channel As Integer
                 ' Importantly, we have to reconcile the two sets of gain settings because the same integration time is used for both channels.
+
                 ' First, what is the highest integration time setting where there are valid (non-saturating) values for both channels
                 ' for at least one primary gain
                 ' For this_channel = 0 To 1 ' this_channel=0 means it is the samples channel data
                 ' this_channel=0 means it is the samples channel data
 
                 Dim highest_acceptable_integration_time_index = 0
-                Dim highest_ok = 0
-
-                'cycle through the primary gains
-                ' this_channel=1 means it is the reference channel data
-                'For primary_gain_index = 0 To 3
-                '    any_not_ok = 0
-                '    ' this_channel=1 means it is the reference channel data
-                '    highest_acceptable_integration_time_index = M_Number_Measuring_Lights(zero_protocol) 'start with the maximum setting
-
-                '    For M_Temp = 1 To M_Number_Measuring_Lights(zero_protocol) 'cycle through the integration times (which are stored as 
-                '        Jabber_jabber.gain_data_list.Items.Add("primary_gain: " & Str(use_primary_gain) & " int: " & Measuring_Pulse_Duration(zero_protocol, M_Temp) & " Vs: " & Gain_Volts(0, use_primary_gain, M_Temp) & " Vr: " & Gain_Volts(1, use_primary_gain, M_Temp))
-                '        If (Gain_Volts(0, use_primary_gain, M_Temp) < gain_slop) And (Gain_Volts(1, use_primary_gain, M_Temp) < gain_slop) Then
-                '            highest_acceptable_integration_time_index = M_Temp 'if, at any integration times there are valid voltages, the set the flag to this index
-                '        End If
-                '    Next
-                'Next
-
-
-                ' this_channel=1 means it is the reference channel data
-                highest_acceptable_integration_time_index = M_Number_Measuring_Lights(zero_protocol) 'start with the maximum setting
-                Dim chan0_best_primary_gain As Integer = 0
-                Dim chan1_best_primary_gain As Integer = 0
-
-                Dim chan0_ok, chan1_ok As Integer
-
-                For M_Temp = 1 To M_Number_Measuring_Lights(zero_protocol)  'cycle through the integration times starting from the lowest
-                    highest_ok = -1 'start at negative 1 
-                    chan0_ok = -1
-                    chan1_ok = -1
-
-                    For primary_gain_index = 0 To 3 ' go through all the primary gains from low to high 
-                        Jabber_jabber.gain_data_list.Items.Add("primary_gain: " & Str(primary_gain_index) & " int: " & Measuring_Pulse_Duration(zero_protocol, M_Temp) & " Vs: " & Gain_Volts(0, primary_gain_index, M_Temp) & " Vr: " & Gain_Volts(1, primary_gain_index, M_Temp))
-                        If (Gain_Volts(0, primary_gain_index, M_Temp) < gain_slop) Then ' if the value is less than the max, save the gain index in chan0_ok
-                            chan0_ok = primary_gain_index
-                        End If
-
-                        If (Gain_Volts(1, primary_gain_index, M_Temp) < gain_slop) Then ' if the value is less than the max, save the gain index in chan1_ok
-                            chan1_ok = primary_gain_index
-                            'highest_ok = primary_gain_index 'if something works, 
-                            'highest_acceptable_integration_time_index = M_Temp 'if, at any integration times there are valid voltages, the set the flag to this index
+                For primary_gain_index = 0 To 3
+                    use_primary_gain = primary_gains(primary_gain_index)
+                    'For use_primary_gain = 0 To ok_primary_gains.Length() - 1 'cycle through the primary gains
+                    ' this_channel=1 means it is the reference channel data
+                    For M_Temp = 1 To M_Number_Measuring_Lights(zero_protocol) 'cycle through the integration times (which are stored as 
+                        'Jabber_jabber.gain_data_list.Items.Add("primary_gain: " & Str(use_primary_gain) & " int: " & Measuring_Pulse_Duration(zero_protocol, M_Temp) & " vs: " & Gain_Volts(0, use_primary_gain, M_Temp) & " vr: " & Gain_Volts(1, use_primary_gain, M_Temp))
+                        If (Gain_Volts(0, use_primary_gain, M_Temp) < gain_slop) And (Gain_Volts(1, use_primary_gain, M_Temp) < gain_slop) Then
+                            highest_acceptable_integration_time_index = M_Temp 'if, at any integration times there are valid voltages, the set the flag to this index
                         End If
                     Next
-
-                    If (chan0_ok > -1 And chan1_ok > -1) Then 'if there are good values for each channel then save the primary gains for each channel in chan0_best and chan1_best
-                        chan0_best_primary_gain = chan0_ok
-                        chan1_best_primary_gain = chan1_ok
-                        highest_acceptable_integration_time_index = M_Temp 'if, at any integration times there are valid voltages, the set the flag to this index
-                    End If
-
-
                 Next
-
-
 
                 Jabber_jabber.gain_data_list.Items.Add("highest OK int time" & Str(this_channel) & " is " & Measuring_Pulse_Duration(zero_protocol, highest_acceptable_integration_time_index))
                 ' now, for each channel, find the highest acceptable primary gain 
 
                 Measuring_Pulse_Duration(Current_Protocol, mi_index) = Measuring_Pulse_Duration(zero_protocol, highest_acceptable_integration_time_index)
 
-                Jabber_jabber.gain_data_list.Items.Add("highest OK sample primary gain is :" & Str(chan0_best_primary_gain))
-                Jabber_jabber.gain_data_list.Items.Add("highest OK reference primary gain is :" & Str(chan1_best_primary_gain))
+                Dim highest_acceptable_primary_gain() = {0, 0}
+                For this_channel = 0 To 1
+                    For primary_gain_index = 0 To 3 'cycle through the primary gains
+                        use_primary_gain = primary_gains(primary_gain_index)
 
-                M_Primary_Gain(Current_Protocol, mi_index) = chan0_best_primary_gain
-                M_Reference_Gain(Current_Protocol, mi_index) = chan1_best_primary_gain
+                        'For use_primary_gain = 0 To ok_primary_gains.Length() 'cycle through the primary gains
+                        If (Gain_Volts(this_channel, use_primary_gain, highest_acceptable_integration_time_index) < gain_slop) Then
+                            highest_acceptable_primary_gain(this_channel) = use_primary_gain
+                        End If
+                    Next
+                    Jabber_jabber.gain_data_list.Items.Add("high OK primary gain channel " & Str(this_channel) & " is " & Str(highest_acceptable_primary_gain(this_channel)))
+                    If this_channel = 0 Then
+                        M_Primary_Gain(Current_Protocol, mi_index) = highest_acceptable_primary_gain(this_channel)
+
+                    Else
+                        M_Reference_Gain(Current_Protocol, mi_index) = highest_acceptable_primary_gain(this_channel)
+
+                    End If
+                Next
 
 
-                '    If this_channel = 0 Then
-                '        M_Primary_Gain(Current_Protocol, mi_index) = highest_acceptable_primary_gain(this_channel)
 
-                '    Else
 
+
+                'Next, find the highest integration time using the highest acceptable primary gain
+                'Dim highest_acceptable_integration_time_index As Short = 0
+                'For M_Temp = 1 To M_Number_Measuring_Lights(zero_protocol) - 1 'cycle through the integration times (which are stored as 
+                '    'Jabber_jabber.gain_data_list.Items.Add("primary_gain: " & Str(use_primary_gain) & " int: " & Str(M_Temp) & "vs: " & Gain_Volts(0, use_primary_gain, M_Temp) & "vr: " & Gain_Volts(1, use_primary_gain, M_Temp))
+                '    If (Gain_Volts(0, use_primary_gain, M_Temp) < gain_slop) And (Gain_Volts(1, highest_acceptable_primary_gain, M_Temp) < gain_slop) Then
+                '        highest_acceptable_integration_time_index = M_Temp 'if, at any integration times there are valid voltages, the set the flag to 1
                 '    End If
+                'Next
 
+                'Jabber_jabber.gain_data_list.Items.Add("highest acceptable integration time = " & Measuring_Pulse_Duration(Current_Protocol, highest_acceptable_integration_time_index))
 
-                '    Dim highest_acceptable_primary_gain() = {0, 0}
-                '    'Dim ttest As String
-                '    Dim this_channel_number As Short
-                '    Dim this_channel_name As String
-                '    For this_channel = 0 To 1
-                '        If this_channel = 0 Then
-                '            this_channel_name = "sample"
-                '            this_channel_number = In_Channel(Current_Protocol)
-                '        Else
-                '            this_channel_name = "reference"
-                '            this_channel_number = Ref_Channel_Number(Current_Protocol)
-                '        End If
-                '        For primary_gain_index = 0 To 3 'cycle through the primary gains
-                '            use_primary_gain = primary_gains(primary_gain_index)
-                '            'ttest = "LED# :" + Str(mi_index) + " " + this_channel_name + ": " + Str(this_channel_number) + ":" + Str(primary_gain_index)
-                '            'Jabber_jabber.gain_data_list.Items.Add(ttest)
+                'Dim best_gain_time(2) As String
+                'Dim best_primary_gain(2) As Single
+                'Dim best_index(2) As Integer
+                'Dim best_outcomes(2) As Single
 
-                '            'For use_primary_gain = 0 To ok_primary_gains.Length() 'cycle through the primary gains
-                '            If (Gain_Volts(this_channel, use_primary_gain, highest_acceptable_integration_time_index) < gain_slop) Then
-                '                highest_acceptable_primary_gain(this_channel) = use_primary_gain
-                '            End If
-                '        Next
-                '        Jabber_jabber.gain_data_list.Items.Add("high OK primary gain channel " & Str(this_channel) & " is " & Str(highest_acceptable_primary_gain(this_channel)))
-                '        If this_channel = 0 Then
-                '            M_Primary_Gain(Current_Protocol, mi_index) = highest_acceptable_primary_gain(this_channel)
+                'Dim how_close(2) As Single 'hold the current smallest difference betwen voltage and gain_slop
+                'how_close(0) = 10
+                'how_close(1) = 10
+                ''start with the sample channel 
+                'For this_channel = 0 To 1 ' this_channel=0 means it is the samples channel data
+                '    ' this_channel=0 means it is the samples channel data
+                '    For use_primary_gain = 0 To 3 'cycle through the primary gains
+                '        ' this_channel=1 means it is the reference channel data
+                '        If ok_primary_gains(use_primary_gain) = 1 Then
 
-                '        Else
-                '            M_Reference_Gain(Current_Protocol, mi_index) = highest_acceptable_primary_gain(this_channel)
-
+                '            For M_Temp = 1 To M_Number_Measuring_Lights(zero_protocol) - 1 'cycle through the integration times (which are stored as 
+                '                '                                                           different M_Number_Measuring_Lights
+                '                ' if the output voltage exceeds that of the gain_slop setting, then skip
+                '                If Gain_Volts(this_channel, use_primary_gain, M_Temp) < gain_slop Then
+                '                    ' test of the difference between gain_slop and the voltage is smaller than the previous difference
+                '                    If (gain_slop - Gain_Volts(this_channel, use_primary_gain, M_Temp)) < how_close(this_channel) Then
+                '                        'if the difference between gain_slop and the voltage is smaller than the previous difference, then
+                '                        ' store the best_gain_time and the best_primary_gain in the arrays
+                '                        best_gain_time(this_channel) = measuring_pulse_duration_array(M_Temp) 'measuring_pulse_duration_numerical_array(M_Temp)
+                '                        best_primary_gain(this_channel) = use_primary_gain
+                '                        'also store the outcome, i.e. the voltage output obtained under these conditions
+                '                        best_outcomes(this_channel) = Gain_Volts(this_channel, use_primary_gain, M_Temp)
+                '                        ' store the index that this occured
+                '                        best_index(this_channel) = M_Temp
+                '                        ' place the current difference in the how_close array
+                '                        how_close(this_channel) = gain_slop - Gain_Volts(this_channel, use_primary_gain, M_Temp)
+                '                    End If
+                '                End If
+                '            Next
                 '        End If
                 '    Next
+                'Next
 
 
+                '' that we know the best combination of primary gain and the integration time for the sample channel,
+                '' we can find the best primary gain for the reference channel USING THE BEST measuring_pulse_duration found for the sample?
 
+                'this_channel = 1 'this means we are working with the reference channel
+                '' First, test if the integration time 
+
+                'For use_primary_gain = 0 To 3
+                '    M_Temp = best_index(0) 'M_Number_Measuring_Lights(best_gain_time(0)) 'set at the best integration time for the sample
+                '    'gain_data_list.Items.Add("t:" & Str(measuring_pulse_duration_numerical_array(M_Temp)) & " v:" & Str(Gain_Volts(this_channel, use_primary_gain, M_Temp)))
+
+                '    If Gain_Volts(this_channel, use_primary_gain, M_Temp) > gain_slop Then
+                '        'gain_data_list.Items.Add("yikes!")
+                '    Else
+                '        If (gain_slop - Gain_Volts(this_channel, use_primary_gain, M_Temp)) < how_close(this_channel) Then
+                '            best_gain_time(this_channel) = measuring_pulse_duration_array(M_Temp) 'measuring_pulse_duration_numerical_array(M_Temp)
+                '            best_primary_gain(this_channel) = use_primary_gain
+                '            best_outcomes(this_channel) = Gain_Volts(this_channel, use_primary_gain, M_Temp)
+                '            best_index(this_channel) = M_Temp
+                '            how_close(this_channel) = gain_slop - Gain_Volts(this_channel, use_primary_gain, M_Temp)
+                '        End If
+                '    End If
+
+                'Next
+                'Jabber_jabber.gain_data_list.Items.Add("Measuring Light: " & set_gain_for_this_measuring_light)
+                'Jabber_jabber.gain_data_list.Items.Add("sam: gain: " & Str(best_primary_gain(0)) & " int time: " _
+                '                         & best_gain_time(0) & "output: " _
+                '                         & Str(Gain_Volts(0, best_primary_gain(0), best_index(0))))
+
+                'Jabber_jabber.gain_data_list.Items.Add("ref: gain: " & Str(best_primary_gain(1)) & " int time: " _
+                '                         & best_gain_time(1) & "output: " _
+                '                         & Str(Gain_Volts(1, best_primary_gain(1), best_index(1))))
+                'Jabber_jabber.gain_data_list.Items.Add("---------------------------------------------------------------")
+
+                'gain_data_list.Items.Add("ref: gain: " & Str(best_primary_gain(1)) & "int time: " & best_gain_time(1))
+                '        best_times_array(mi_index) = best_gain_time(0)
+                '        best_meas_gains_array(mi_index) = best_primary_gain(0)
+                '        best_ref_gains_array(mi_index) = best_primary_gain(0)
+                '    Else
+                '        Jabber_jabber.gain_data_list.Items.Add("Measuring Light : " & set_gain_for_this_measuring_light & " settings maintained at:")
+                '        Jabber_jabber.gain_data_list.Items.Add("Int time= " & Measuring_Pulse_Duration(Current_Protocol, mi_index))
+                '        Jabber_jabber.gain_data_list.Items.Add("Primary gain = " & M_Primary_Gain(Current_Protocol, mi_index))
+                '        Jabber_jabber.gain_data_list.Items.Add("Reference gain = " & M_Reference_Gain(Current_Protocol, mi_index))
+                '        Jabber_jabber.gain_data_list.Items.Add("---------------------------------------------------------------")
+
+                '    End If
+                'Jabber_jabber.gain_data_list.Items.Add("Measuring Light : " & set_gain_for_this_measuring_light & " settings maintained at:")
+                'Jabber_jabber.gain_data_list.Items.Add("Int time= " & Measuring_Pulse_Duration(Current_Protocol, mi_index))
+                'Jabber_jabber.gain_data_list.Items.Add("Primary gain = " & M_Primary_Gain(Current_Protocol, mi_index))
+                'Jabber_jabber.gain_data_list.Items.Add("Reference gain = " & M_Reference_Gain(Current_Protocol, mi_index))
+                'Jabber_jabber.gain_data_list.Items.Add("---------------------------------------------------------------")
+                'Measuring_Pulse_Duration(Current_Protocol, mi_index) = Measuring_Pulse_Duration(zero_protocol, highest_acceptable_integration_time)
+                'M_Primary_Gain(Current_Protocol, mi_index) = best_meas_gains_array(mi_index)
+                'M_Reference_Gain(Current_Protocol, mi_index) = best_ref_gains_array(mi_index)
             End If
 
         Next
+        'now, insert the best values into the Current_Protocol
+
+        'For mi_index = 1 To M_Number_Measuring_Lights(Current_Protocol)
+        '    If m_set_auto_gain(Current_Protocol, mi_index) > 0 Then 'only set the gains in the protocol if the defaul setting for m_set_auto_gain is 1
+        '        Measuring_Pulse_Duration(Current_Protocol, mi_index) = best_times_array(mi_index)
+        '        M_Primary_Gain(Current_Protocol, mi_index) = best_meas_gains_array(mi_index)
+        '        M_Reference_Gain(Current_Protocol, mi_index) = best_ref_gains_array(mi_index)
+        '    End If
+        'Next
 
     End Sub
 
@@ -7306,10 +7355,6 @@ get_out:
     End Sub
 
     Private Sub zg4_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles zg4.Load
-
-    End Sub
-
-    Private Sub TextBox3_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles TextBox3.TextChanged
 
     End Sub
 End Class

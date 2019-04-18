@@ -23,7 +23,7 @@ Public Class Protocol
     Public Pre_Pulse(-1) As Short ' prepulse for each loop
     Public Pre_Delay(-1) As String ' predelay state for each loop
     Public Pre_Pulse_Time(-1) As String  ' predelay duration  for each loop
-    Public pre_pulse_light As Short ' 4-bit code for which combination of actinic lights to use during the prepulse (bit 1=blue, bit 2=saturating actinic, bit3=farred, bit 4=Xe flash)
+    Public pre_pulse_light As Long ' two-byte code for which combination of actinic lights to use during the prepulse (bit 1=blue, bit 2=saturating actinic, bit3=farred, bit 4=Xe flash)
 
     Public Number_Pulses(-1) As Short ' number of pulses in each loop
     Public Measuring_Light(-1) As Short ' array to hold the light number for each measuring light

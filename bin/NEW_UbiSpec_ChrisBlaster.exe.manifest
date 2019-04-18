@@ -3,7 +3,7 @@
   <asmv1:assemblyIdentity name="NEW_UbiSpec_ChrisBlaster.exe" version="3.0.0.3" publicKeyToken="0000000000000000" language="neutral" processorArchitecture="x86" type="win32" />
   <application />
   <entryPoint>
-    <assemblyIdentity name="NEW_UbiSpec_ChrisBlaster" version="1.0.6859.16234" language="neutral" processorArchitecture="x86" />
+    <assemblyIdentity name="NEW_UbiSpec_ChrisBlaster" version="1.0.7046.18996" language="neutral" processorArchitecture="x86" />
     <commandLine file="NEW_UbiSpec_ChrisBlaster.exe" parameters="" />
   </entryPoint>
   <trustInfo>
@@ -41,6 +41,11 @@
     </dependentAssembly>
   </dependency>
   <dependency>
+    <dependentAssembly dependencyType="preRequisite" allowDelayedBinding="true">
+      <assemblyIdentity name="MccDaq" version="2.9.0.0" publicKeyToken="A37EEFCF5C6CA10A" language="neutral" processorArchitecture="msil" />
+    </dependentAssembly>
+  </dependency>
+  <dependency>
     <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="ChrisBlasterWindowsHost.dll" size="53248">
       <assemblyIdentity name="ChrisBlasterWindowsHost" version="0.0.0.0" language="neutral" processorArchitecture="x86" />
       <hash>
@@ -53,14 +58,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="NEW_UbiSpec_ChrisBlaster.exe" size="285696">
-      <assemblyIdentity name="NEW_UbiSpec_ChrisBlaster" version="1.0.6859.16234" language="neutral" processorArchitecture="x86" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="NEW_UbiSpec_ChrisBlaster.exe" size="286208">
+      <assemblyIdentity name="NEW_UbiSpec_ChrisBlaster" version="1.0.7046.18996" language="neutral" processorArchitecture="x86" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
-        <dsig:DigestValue>ItJAEEYkXOx1j4AZN/lHa9XBk00=</dsig:DigestValue>
+        <dsig:DigestValue>H2CcsHOT5Cs0EEVeGym4U0CsBpw=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>

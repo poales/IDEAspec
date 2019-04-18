@@ -124,6 +124,7 @@ Partial Class DMK_v1
         Me.ProgressBar4 = New System.Windows.Forms.ProgressBar()
         Me.ProgressBar5 = New System.Windows.Forms.ProgressBar()
         Me.outfile_label = New System.Windows.Forms.Label()
+        Me.spalicat = New System.IO.Ports.SerialPort(Me.components)
         CType(Me.Pesgo1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.MainMenu1.SuspendLayout()
         CType(Me.TrackBar1, System.ComponentModel.ISupportInitialize).BeginInit()
@@ -615,6 +616,10 @@ Partial Class DMK_v1
         Me.outfile_label.ForeColor = System.Drawing.SystemColors.ControlText
         Me.outfile_label.Name = "outfile_label"
         '
+        'spalicat
+        '
+        Me.spalicat.BaudRate = 19200
+        '
         'DMK_v1
         '
         resources.ApplyResources(Me, "$this")
@@ -743,5 +748,6 @@ Partial Class DMK_v1
     Friend WithEvents ProgressBar4 As System.Windows.Forms.ProgressBar
     Friend WithEvents ProgressBar5 As System.Windows.Forms.ProgressBar
     Public WithEvents outfile_label As System.Windows.Forms.Label
+    Friend WithEvents spalicat As System.IO.Ports.SerialPort
 #End Region
 End Class

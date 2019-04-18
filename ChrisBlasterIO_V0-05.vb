@@ -464,24 +464,34 @@
 
 
 
-            'If (the_protocol.Pre_Pulse(p_loop) > 0) Then
-            '    If the_protocol.Pre_Delay(p_loop) <> "" Then ' pre-delay
-            '        success = success And AddNextBitmask(index, p_loop, _
-            '                   makeBitmask(the_protocol.Intensity(p_loop), 0, 0, 0, 0, the_protocol.Far_Red(p_loop), _
-            '                               the_protocol.Saturating_Pulse(p_loop), the_protocol.Blue_Actinic(p_loop), _
-            '                               0, 0), _
-            '                   Protocol.TimeInSeconds(the_protocol.Pre_Delay(p_loop)))
+            If (the_protocol.Pre_Pulse(p_loop) > 0) Then
+                'add the pre_delay time
+                If the_protocol.Pre_Delay(p_loop) <> "" Then ' pre-delay
+                    success = success And AddNextBitmask(index, p_loop, _
+                               makeBitmask(the_protocol.Intensity(p_loop), 0, 0, 0, 0, the_protocol.Far_Red(p_loop), _
+                                           the_protocol.Saturating_Pulse(p_loop), the_protocol.Blue_Actinic(p_loop), _
+                                           0, 0), _
+                               Protocol.TimeInSeconds(the_protocol.Pre_Delay(p_loop)))
+                Else
+                    success = success And AddNextBitmask(index, p_loop, _
+                               makeBitmask(the_protocol.Intensity(p_loop), 0, 0, 0, 0, the_protocol.Far_Red(p_loop), _
+                                           the_protocol.Saturating_Pulse(p_loop), the_protocol.Blue_Actinic(p_loop), _
+                                           0, 0), _
+                               Protocol.TimeInSeconds("1000u")) 'if no timeindicated, delay by 1ms
+                End If
+                'enter the prepulse duration and the LEDs to use 
+                'note that there are now two sort so lights that can be used:
+                'one is the actinic, blue and FR lights, the other is a measuring pulse
+                Jabber_jabber.List1.Items.Add("ppl in CB:")
+                Jabber_jabber.List1.Items.Add((the_protocol.pre_pulse_light And &HF0) / &H10)
+                success = success And AddNextBitmask(index, p_loop, _
+                               makeBitmask(((the_protocol.pre_pulse_light And &HFF00) / &H100), 0, ((the_protocol.pre_pulse_light And &HF0) / &H10), 0, 0, ((the_protocol.pre_pulse_light And 4) / 4), _
+                                           ((the_protocol.pre_pulse_light And 2) / 2), (the_protocol.pre_pulse_light And 1), _
+                                            ((the_protocol.pre_pulse_light And 8) / 8),  0), _
+                               Protocol.TimeInSeconds(the_protocol.Pre_Pulse_Time(p_loop)))
 
-            '    End If
-            '    'prepulse
-            '    success = success And AddNextBitmask(index, p_loop, _
-            '                   makeBitmask(the_protocol.Intensity(p_loop), 0, 0, 0, 0, ((the_protocol.pre_pulse_light And 4) / 4), _
-            '                               ((the_protocol.pre_pulse_light And 2) / 2), (the_protocol.pre_pulse_light And 1), _
-            '                               ((the_protocol.pre_pulse_light And 8) / 8), 0), _
-            '                   Protocol.TimeInSeconds(the_protocol.Pre_Pulse_Time(p_loop)))
-
-            'End If
-            ' end of prepulse
+            End If
+            'end of prepulse
 
             ' measuring pulse
             ' Xe flash, if present
@@ -550,12 +560,22 @@
                         Else
                             temp_sat_pulse = the_protocol.Saturating_Pulse(p_loop)
                         End If
+                        Dim temp_measure_with_xe As Short
+                        Dim temp_measuring_light As Short
+                        If the_protocol.Measuring_Light(p_light) = 16 Then
+                            temp_measuring_light = (the_protocol.Measuring_Light(p_light) And &HF)
+                            temp_measure_with_xe = 1
+                        Else
+                            temp_measuring_light = (the_protocol.Measuring_Light(p_light))
+                            temp_measure_with_xe = 0
+
+                        End If
                         success = success And AddNextBitmask(index, p_loop, _
                                                makeBitmask(intensity_holder, 0, the_protocol.Measuring_Light(p_light), _
                                                            samp_det_gain + 1, _
                                                            ref_det_gain + 1, the_protocol.Far_Red(p_loop), _
                                                            temp_sat_pulse, the_protocol.Blue_Actinic(p_loop), _
-                                                        1, 0), _
+                                                        temp_measure_with_xe, 0), _
                                                          Protocol.TimeInSeconds(the_protocol.Measuring_Pulse_Duration(p_light)))
 
                         ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -564,7 +584,7 @@
                                                            samp_det_gain + 1, _
                                                            ref_det_gain + 1, the_protocol.Far_Red(p_loop), _
                                                            the_protocol.Saturating_Pulse(p_loop), the_protocol.Blue_Actinic(p_loop), _
-                                                           1, 0), _
+                                                           0, 0), _
                                                          Protocol.TimeInSeconds("5u"))
 
 
